@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap');
+body{
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+}
+.folder-col{
+    border-right: 1px solid lightgray;
+    /* height: 100%; */
+    min-height: 100vh;
+}
+.icon{
+    margin-right: 10px;
+}
+.input-container{
+    margin-top: 10px;
+}
+.steps{
+    margin-bottom: 10px;
+}
+.plate-img1{
+    width: 100%;
+    margin: 30px 0 30px;
+}
+.plate-geo1{
+    width: 450px;
+}
+.steps-tab{
+    margin-top: 10px;
+    /* border: solid 1px; */
+    border-radius: 0.25rem;
+}
+.steps-tab .active{
+    background-color: #eaecef !important;
+    color: black !important;
+}
+.nav-link{
+    color: black;
+    /* border-radius: 0 !important; */
+    /* border: solid 1px black !important; */
+}
+.nav-link:hover{
+    color: black;
+    background-color: #f7f7f7;
+    cursor: pointer;
+}
+/* .nav-pills .nav-link{
+    border-radius: 0;
+} */
+.input-invalid{
+    font-size: 12px;
+    margin: 5px 0 0;
+    padding: 5px;
+    position: relative;
+    z-index: 99;
+    width: max-content;
+    
+}
+
+/* img inputs */
+.img-input-parent{
+    position: relative;
+}
+.img-input-child{
+    position: absolute;
+    width: 25%;
+}
+.input-port-dia{
+    left: 265px;
+    top: 30px
+}
+.input-width{
+    left: 90px;
+    top: 400px;
+}
+.input-port-dis-h{
+    left: 90px;
+    top: 640px;
+}
+.input-port-dis-v{
+    left: 390px;
+    top: 300px;
+}
+.input-length{
+    left: 335px;
+    top: 360px;
+}
+.input-beta{
+    left: 145px;
+    top: 230px;
+}
+.input-thickness{
+    left: 360px;
+    top: 700px;
+}
+.input-pitch{
+    left: 395px;
+    top: 770px;
+}
+.form-text-input{
+    margin-bottom: 10px;
+}
+.drop-down{
+    margin-bottom: 10px;
+}
+.form-item{
+    margin-bottom: 10px;
+}
+.form-item-last{
+    margin-bottom: 0;
+}
+/* .input-group-text{
+    background-color: rgb(227, 242, 247) !important;
+} */
+
+
+.main-tab:hover{
+    background-color: #ececec;
+    cursor: pointer;
+}
+.clickable{
+    cursor: pointer;
+}
