@@ -43,6 +43,6 @@ app.use(paths.plateGeometries, routerPlateGeo);
 app.use(paths.fluidConditions, routerFluidCond);
 
 // listen
-app.listen(port, ()=>{
+app.listen(process.env.PORT || port, ()=>{
     console.log("Server started.");
 })
