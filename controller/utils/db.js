@@ -38,6 +38,6 @@ export function parse(result){
 
 export function now(){
     const d = new Date();
-    d.setHours(d.getHours()+8);
+    d.setHours(d.getHours());
     return d.toISOString().slice(0, 19).replace("T", " ");
 }
