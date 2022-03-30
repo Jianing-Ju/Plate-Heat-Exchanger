@@ -23,11 +23,29 @@ export function getFolders(req, res=response){
     })
 }
 
+// export function setFolder(req, res=response){
+//     const {folderId, designId} = req.body;
+//     query(`UPDATE Designs SET folderId="${folderId}" WHERE id="${designId}"`).then(()=>{
+//         res.json({ok: true});
+//     }).catch((err)=>{
+//         console.error("Set design folder", err);
+//     })
+// }
 export function setFolder(req, res=response){
     const {folderId, designId} = req.body;
-    query(`UPDATE Designs SET folderId="${folderId}" WHERE id="${designId}"`).then(()=>{
+    const designIdString = designId.join('","');
+    query(`UPDATE Designs SET folderId="${folderId}" WHERE id IN ("${designIdString}")`).then(()=>{
         res.json({ok: true});
     }).catch((err)=>{
         console.error("Set design folder", err);
+    })
+}
+
+export function deleteFolder(req, res=response){
+    const {folderId} = req.params;
+    query(`DELETE FROM Folders WHERE id="${folderId}"`).then(()=>{
+        res.json({ok: true});
+    }).catch((err)=>{
+        console.error("Delete folder", err);
     })
 }

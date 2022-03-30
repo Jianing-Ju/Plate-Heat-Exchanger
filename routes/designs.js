@@ -8,6 +8,6 @@ router.put("/", updateDesign);
 router.get("/:userId", getDesigns);
 router.get("/exists/:designId", designExists);
 router.get("/input/:designId", getInput);
-router.delete("/:designId", deleteDesign);
+router.post("/delete", deleteDesign);
 
 export default router;

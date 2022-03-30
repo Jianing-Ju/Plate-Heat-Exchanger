@@ -10,59 +10,125 @@ import csvtojson from "csvtojson";
 import { nanoid } from "nanoid";
 
 export async function exportCharts(req, res = response) {
-    const { designId } = req.params;
-    // get name and input
-    const { inputId, name, designType } =
-        await query(`SELECT inputId, name, designType FROM Designs WHERE id="${designId}"`).then(result => {
-            return parse(result)[0];
+    const { designId: designIds } = req.body;
+    const allData = [];
+    let errorCount = 0;
+    designIds.reduce((p, designId, index) => p.then(async() => {
+        // get name and input
+        const { inputId, name, designType } =
+            await query(`SELECT inputId, name, designType FROM Designs WHERE id="${designId}"`).then(result => {
+                return parse(result)[0];
+            }).catch(err => {
+                console.err("Get deisgns", err);
+            })
+        console.log("inputId", inputId)
+        // dup!!
+        const flatInput = await query(`SELECT * FROM Inputs WHERE id="${inputId}"`).then(result => {
+            return JSON.parse(JSON.stringify(result))[0];
         }).catch(err => {
-            console.err("Get deisgns", err);
+            console.error("Get input", err);
         })
-    console.log("inputId", inputId)
-    // dup!!
-    const flatInput = await query(`SELECT * FROM Inputs WHERE id="${inputId}"`).then(result => {
-        return JSON.parse(JSON.stringify(result))[0];
-    }).catch(err => {
-        console.error("Get input", err);
-    })
-    // calculate results
-    const input = unFlatten(flatInput);
-    let calRes;
-    if (designType == "rating") {
-        calRes = rating(input);
-    } else {
-        calRes = sizing(input);
-    }
-    // if not okay, return
-    if (!calRes.ok){
-        res.status(400).send("Cannot calculate");
-        return;
-    }
-    // save as csv
-    const iterData = calRes.heatTransfer.reduce((obj, iter, i) => {
-        const iterWithCaption = Object.entries(iter).reduce((obj, pair) => ({
-            ...obj,
-            [`iter${i + 1}-${pair[0]}`]: pair[1]
-        }), {});
-        return {
-            ...obj,
-            ...iterWithCaption
+        // calculate results
+        const input = unFlatten(flatInput);
+        let calRes;
+        if (designType == "rating") {
+            calRes = rating(input);
+        } else {
+            calRes = sizing(input);
         }
-    }, {})
-    const singleData = {
-        name: name,
-        ...flatInput,
-        ...calRes.config,
-        ...iterData,
-        ...calRes.pressure,
-    }
-    // console.log(singleData)
+        // if not okay, return
+        if (!calRes.ok) {
+            errorCount += 1;
+            return;
+        }
+        // compile data
+        const iterData = calRes.heatTransfer.reduce((obj, iter, i) => {
+            const iterWithCaption = Object.entries(iter).reduce((obj, pair) => ({
+                ...obj,
+                [`iter${i + 1}-${pair[0]}`]: pair[1]
+            }), {});
+            return {
+                ...obj,
+                ...iterWithCaption
+            }
+        }, {})
+        const singleData = {
+            name: name,
+            type: designType,
+            ...flatInput,
+            ...calRes.config,
+            ...iterData,
+            ...calRes.pressure,
+        }
+        // console.log(singleData)
+        allData.push(singleData);
+        if (index == designIds.length - 1) {
+            if (errorCount == designId.length){
+                res.status(400).send("Cannot calculate");
+                return;
+            }
+            parseAsync(allData, { fields: Object.keys(allData[0]) }).then(async csv => {
+                const filename = `./csv/design-${designId}.csv`;
+                await fs.writeFile(filename, csv);
+                res.download(filename, "download.csv")
+            })
+        }
 
-    parseAsync(singleData, { fields: Object.keys(singleData) }).then(async csv => {
-        const filename = `./csv/design-${designId}.csv`;
-        await fs.writeFile(filename, csv);
-        res.download(filename, "download.csv")
-    })
+    }), Promise.resolve());
+
+    // // get name and input
+    // const { inputId, name, designType } =
+    //     await query(`SELECT inputId, name, designType FROM Designs WHERE id="${designId}"`).then(result => {
+    //         return parse(result)[0];
+    //     }).catch(err => {
+    //         console.err("Get deisgns", err);
+    //     })
+    // console.log("inputId", inputId)
+    // // dup!!
+    // const flatInput = await query(`SELECT * FROM Inputs WHERE id="${inputId}"`).then(result => {
+    //     return JSON.parse(JSON.stringify(result))[0];
+    // }).catch(err => {
+    //     console.error("Get input", err);
+    // })
+    // // calculate results
+    // const input = unFlatten(flatInput);
+    // let calRes;
+    // if (designType == "rating") {
+    //     calRes = rating(input);
+    // } else {
+    //     calRes = sizing(input);
+    // }
+    // // if not okay, return
+    // if (!calRes.ok){
+    //     res.status(400).send("Cannot calculate");
+    //     return;
+    // }
+    // // save as csv
+    // const iterData = calRes.heatTransfer.reduce((obj, iter, i) => {
+    //     const iterWithCaption = Object.entries(iter).reduce((obj, pair) => ({
+    //         ...obj,
+    //         [`iter${i + 1}-${pair[0]}`]: pair[1]
+    //     }), {});
+    //     return {
+    //         ...obj,
+    //         ...iterWithCaption
+    //     }
+    // }, {})
+    // const singleData = {
+    //     name: name,
+    //     type: designType,
+    //     ...flatInput,
+    //     ...calRes.config,
+    //     ...iterData,
+    //     ...calRes.pressure,
+    // }
+    // // console.log(singleData)
+
+    // parseAsync(singleData, { fields: Object.keys(singleData) }).then(async csv => {
+    //     const filename = `./csv/design-${designId}.csv`;
+    //     await fs.writeFile(filename, csv);
+    //     res.download(filename, "download.csv")
+    // })
 
 }
 
@@ -70,7 +136,7 @@ export async function uploadChart(req, res = response) {
     const file = req.file;
     const { userId } = req.params;
     const obj = await csvtojson().fromString(file.buffer.toString('utf8'));
-    obj.reduce((p, row, i) => p.then(async() => {
+    obj.reduce((p, row, i) => p.then(async () => {
         // add to database
         const { name, type } = row;
         console.log(name);
@@ -119,8 +185,8 @@ export async function uploadChart(req, res = response) {
         const designVals = [designId, type, userId, inputId, finalName, now()];
         query("INSERT INTO Designs (??) VALUES (?)", [designCols, designVals]).then((result) => {
             // diff!
-            if (i == obj.length-1){
-                res.json({ok: true});
+            if (i == obj.length - 1) {
+                res.json({ ok: true });
             }
             // diff!
         }).catch((err) => {

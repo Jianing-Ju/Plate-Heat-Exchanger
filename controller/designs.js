@@ -19,9 +19,9 @@ export async function designExists(req, res = response) {
 }
 
 export async function updateDesign(req, res = response) {
-    const { inputId, inputs} = req.body;
+    const { inputId, inputs } = req.body;
     const updateInput = flatten(inputs);
-    query(`UPDATE Designs SET lastModified = "${now()}" WHERE inputId = "${inputId}"`).catch(err =>{
+    query(`UPDATE Designs SET lastModified = "${now()}" WHERE inputId = "${inputId}"`).catch(err => {
         console.error(err);
     })
     query(`UPDATE Inputs SET ? WHERE id = "${inputId}"`, updateInput).then(result => {
@@ -33,7 +33,7 @@ export async function updateDesign(req, res = response) {
 }
 
 export async function saveDesign(req, res = response) {
-    const { userId, designId, inputs, type, name} = req.body;
+    const { userId, designId, inputs, type, name } = req.body;
     const inputId = nanoid();
     // add in input
     const columns = ["id"], values = [inputId];
@@ -55,10 +55,10 @@ export async function saveDesign(req, res = response) {
         finalName = await query(`SELECT count(*) FROM Designs WHERE userId="${userId}" AND name="${finalName}"`)
             .then((result) => {
                 const count = JSON.parse(JSON.stringify(result))[0]["count(*)"];
-                if (count == 1){
+                if (count == 1) {
                     const last = finalName.lastIndexOf("(");
-                    const dup = +finalName.slice(last+1, finalName.length - 1);
-                    if (!isNaN(dup)) return Promise.resolve(`${finalName.slice(0,finalName.length-3)}(${dup+1})`);
+                    const dup = +finalName.slice(last + 1, finalName.length - 1);
+                    if (!isNaN(dup)) return Promise.resolve(`${finalName.slice(0, finalName.length - 3)}(${dup + 1})`);
                     else return Promise.resolve(finalName + "(2)");
                 }
                 else {
@@ -80,7 +80,7 @@ export async function saveDesign(req, res = response) {
 
 export async function getDesigns(req, res = response) {
     const { userId } = req.params;
-    query(`SELECT * FROM Designs WHERE userId="${userId}"`).then(result=>{
+    query(`SELECT * FROM Designs WHERE userId="${userId}" ORDER BY lastModified DESC`).then(result => {
         const designs = JSON.parse(JSON.stringify(result));
         // console.log(designs);
         res.json(designs);
@@ -89,11 +89,11 @@ export async function getDesigns(req, res = response) {
     })
 }
 
-export async function getInput(req, res = response){
+export async function getInput(req, res = response) {
     const { designId } = req.params;
     // get inputId of designId
     const inputId = await getInputId(designId);
-    query(`SELECT * FROM Inputs WHERE id="${inputId}"`).then(result=>{
+    query(`SELECT * FROM Inputs WHERE id="${inputId}"`).then(result => {
         const inputs = JSON.parse(JSON.stringify(result))[0];
         // to correct format
         const formattedInput = unFlatten(inputs);
@@ -103,26 +103,46 @@ export async function getInput(req, res = response){
     })
 }
 
-export async function deleteDesign(req, res = response){
-    const {designId} = req.params;
-    // get inputId of designId
-    const inputId = await getInputId(designId);
-    // delete design
-    await query(`DELETE FROM Designs WHERE id="${designId}"`).then(result=>{
-        return Promise.resolve();
-    }).catch(err=>{
-        console.error("Delete deisgn", err);
-    })
-    // delete input
-    query(`DELETE FROM Inputs WHERE id="${inputId}"`).then(result=>{
-        res.json({ok: true});
-    }).catch(err=>{
-        console.error("Delete input", err);
-    })
+export async function deleteDesign(req, res = response) {
+    const { designId:designIds } = req.body;
+    // // get inputId of designId
+    // const inputId = await getInputId(designId);
+    // // delete design
+    // await query(`DELETE FROM Designs WHERE id="${designId}"`).then(result=>{
+    //     return Promise.resolve();
+    // }).catch(err=>{
+    //     console.error("Delete deisgn", err);
+    // })
+    // // delete input
+    // query(`DELETE FROM Inputs WHERE id="${inputId}"`).then(result=>{
+    //     res.json({ok: true});
+    // }).catch(err=>{
+    //     console.error("Delete input", err);
+    // })
+
+    designIds.reduce((p, designId, index) => p.then(async () => {
+        // get inputId of designId
+        const inputId = await getInputId(designId);
+        // delete design
+        await query(`DELETE FROM Designs WHERE id="${designId}"`).then(result => {
+            return Promise.resolve();
+        }).catch(err => {
+            console.error("Delete deisgn", err);
+        })
+        // delete input
+        query(`DELETE FROM Inputs WHERE id="${inputId}"`).then(result => {
+            if (index == designIds.length - 1){
+                res.json({ ok: true });
+            }
+        }).catch(err => {
+            console.error("Delete input", err);
+        })
+
+    }), Promise.resolve());
 }
 
-async function getInputId(designId){
-    return await query(`SELECT inputId FROM Designs WHERE id="${designId}"`).then(result=>{
+async function getInputId(designId) {
+    return await query(`SELECT inputId FROM Designs WHERE id="${designId}"`).then(result => {
         return Promise.resolve(JSON.parse(JSON.stringify(result))[0].inputId);
     })
 }
