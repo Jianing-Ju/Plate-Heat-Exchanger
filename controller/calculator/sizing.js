@@ -298,7 +298,7 @@ function sizing(input) {
         heatTransfer: resHeatTransfer,
         pressure: resPressure
     }
-    console.log(res);
+    // console.log(res);
     return res;
 }
 

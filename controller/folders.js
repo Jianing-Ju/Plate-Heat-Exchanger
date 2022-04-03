@@ -41,8 +41,13 @@ export function setFolder(req, res=response){
     })
 }
 
-export function deleteFolder(req, res=response){
+export async function deleteFolder(req, res=response){
     const {folderId} = req.params;
+    // set designs in folder to have NULL folder
+    await query(`UPDATE Designs SET folderId=NULL WHERE folderId="${folderId}"`)
+    .then(()=>{return Promise.resolve()})
+    .catch((err)=> console.error("Set folder to NULL", err));
+    // delete folder
     query(`DELETE FROM Folders WHERE id="${folderId}"`).then(()=>{
         res.json({ok: true});
     }).catch((err)=>{

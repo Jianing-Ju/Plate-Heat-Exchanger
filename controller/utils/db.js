@@ -38,6 +38,9 @@ export function parse(result){
 
 export function now(){
     const d = new Date();
-    d.setHours(d.getHours());
+    if (!process.env.PORT){
+        d.setHours(d.getHours()+8);
+    }
+    
     return d.toISOString().slice(0, 19).replace("T", " ");
 }

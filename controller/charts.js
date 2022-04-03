@@ -4,24 +4,24 @@ import { promises as fs } from "fs";
 import { parse, query, now } from "./utils/db.js";
 import { rating } from "./calculator/rating.js";
 import { sizing } from "./calculator/sizing.js";
-import { unFlatten } from "./utils/inputConverter.js";
+import { flatten, unFlatten } from "./utils/inputConverter.js";
 // import fs from "fs";
 import csvtojson from "csvtojson";
 import { nanoid } from "nanoid";
 
 export async function exportCharts(req, res = response) {
-    const { designId: designIds } = req.body;
-    const allData = [];
-    let errorCount = 0;
-    designIds.reduce((p, designId, index) => p.then(async() => {
+    const { designId: designIds, newEntry } = req.body;
+    const entries = [];
+    if (newEntry) entries.push(newEntry);
+    if (designIds) await designIds.reduce((p, designId, index) => p.then(async () => {
         // get name and input
         const { inputId, name, designType } =
             await query(`SELECT inputId, name, designType FROM Designs WHERE id="${designId}"`).then(result => {
+                console.log(designId, result)
                 return parse(result)[0];
             }).catch(err => {
                 console.err("Get deisgns", err);
             })
-        console.log("inputId", inputId)
         // dup!!
         const flatInput = await query(`SELECT * FROM Inputs WHERE id="${inputId}"`).then(result => {
             return JSON.parse(JSON.stringify(result))[0];
@@ -30,51 +30,57 @@ export async function exportCharts(req, res = response) {
         })
         // calculate results
         const input = unFlatten(flatInput);
+        entries.push({ input: input, name: name, designType: designType });
+
+    }), Promise.resolve());
+
+    const allData = entries.reduce((res, entry) => {
+        const {input, name, designType} = entry;
+        const flatInput = flatten(input);
         let calRes;
         if (designType == "rating") {
             calRes = rating(input);
         } else {
             calRes = sizing(input);
         }
-        // if not okay, return
+        // if not okay, dont add to data
         if (!calRes.ok) {
-            errorCount += 1;
-            return;
-        }
-        // compile data
-        const iterData = calRes.heatTransfer.reduce((obj, iter, i) => {
-            const iterWithCaption = Object.entries(iter).reduce((obj, pair) => ({
-                ...obj,
-                [`iter${i + 1}-${pair[0]}`]: pair[1]
-            }), {});
-            return {
-                ...obj,
-                ...iterWithCaption
+            return [...res];
+        } else {
+            // compile data
+            const iterData = calRes.heatTransfer.reduce((obj, iter, i) => {
+                const iterWithCaption = Object.entries(iter).reduce((obj, pair) => ({
+                    ...obj,
+                    [`iter${i + 1}-${pair[0]}`]: pair[1]
+                }), {});
+                return {
+                    ...obj,
+                    ...iterWithCaption
+                }
+            }, {})
+            const singleData = {
+                name: name,
+                type: designType,
+                ...flatInput,
+                ...calRes.config,
+                ...iterData,
+                ...calRes.pressure,
             }
-        }, {})
-        const singleData = {
-            name: name,
-            type: designType,
-            ...flatInput,
-            ...calRes.config,
-            ...iterData,
-            ...calRes.pressure,
+            // console.log(singleData)
+            return [...res, singleData];
         }
-        // console.log(singleData)
-        allData.push(singleData);
-        if (index == designIds.length - 1) {
-            if (errorCount == designId.length){
-                res.status(400).send("Cannot calculate");
-                return;
-            }
-            parseAsync(allData, { fields: Object.keys(allData[0]) }).then(async csv => {
-                const filename = `./csv/design-${designId}.csv`;
-                await fs.writeFile(filename, csv);
-                res.download(filename, "download.csv")
-            })
-        }
+    }, [])
 
-    }), Promise.resolve());
+
+    if (allData.length == 0) {
+        res.status(400).send("Cannot calculate");
+    } else {
+        parseAsync(allData, { fields: Object.keys(allData[0]) }).then(async csv => {
+            const filename = `./csv/design-${new Date().getTime()}.csv`;
+            await fs.writeFile(filename, csv);
+            res.download(filename, "download.csv")
+        })
+    }
 
     // // get name and input
     // const { inputId, name, designType } =
