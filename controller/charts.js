@@ -17,7 +17,7 @@ export async function exportCharts(req, res = response) {
         // get name and input
         const { inputId, name, designType } =
             await query(`SELECT inputId, name, designType FROM Designs WHERE id="${designId}"`).then(result => {
-                console.log(designId, result)
+
                 return parse(result)[0];
             }).catch(err => {
                 console.err("Get deisgns", err);
@@ -33,6 +33,8 @@ export async function exportCharts(req, res = response) {
         entries.push({ input: input, name: name, designType: designType });
 
     }), Promise.resolve());
+
+    const fields = new Set();
 
     const allData = entries.reduce((res, entry) => {
         const {input, name, designType} = entry;
@@ -66,6 +68,10 @@ export async function exportCharts(req, res = response) {
                 ...iterData,
                 ...calRes.pressure,
             }
+            // Add data title to fields
+            Object.keys(singleData).forEach((key)=>{
+                fields.add(key);
+            })
             // console.log(singleData)
             return [...res, singleData];
         }
@@ -75,7 +81,7 @@ export async function exportCharts(req, res = response) {
     if (allData.length == 0) {
         res.status(400).send("Cannot calculate");
     } else {
-        parseAsync(allData, { fields: Object.keys(allData[0]) }).then(async csv => {
+        parseAsync(allData, { fields: Array.from(fields) }).then(async csv => {
             const filename = `./csv/design-${new Date().getTime()}.csv`;
             await fs.writeFile(filename, csv);
             res.download(filename, "download.csv")
